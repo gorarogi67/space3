@@ -83,6 +83,36 @@
             z-index: 2;
         }
         
+        #soundToggle {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            color: #fff;
+            font-size: 20px;
+            text-align: center;
+            line-height: 40px;
+            user-select: none;
+            -webkit-user-select: none;
+            z-index: 2;
+            cursor: pointer;
+        }
+        
+        #soundToggle.muted::after {
+            content: "";
+            position: absolute;
+            width: 2px;
+            height: 70%;
+            background-color: red;
+            transform: rotate(45deg);
+            top: 15%;
+            left: 47%;
+        }
+        
         /* Stile per la rotazione dell'orientamento */
         @media (orientation: landscape) {
             #fireButton {
@@ -108,9 +138,194 @@
         
         <div id="fireButton">SPARA</div>
         <div id="touchInfo">Trascina per muovere</div>
+        <div id="soundToggle">🔊</div>
     </div>
     
     <script>
+    // Sistema audio per effetti sonori
+    const audioSystem = {
+        context: null,
+        isMuted: false,
+        sounds: {},
+        alienMoveStep: 0,
+        
+        // Inizializza il sistema audio
+        init() {
+            try {
+                // Crea nuovo AudioContext
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.context = new AudioContext();
+                
+                // Crea i suoni
+                this.createSounds();
+                
+                // Aggiungi gestore per il pulsante mute
+                const soundToggle = document.getElementById('soundToggle');
+                soundToggle.addEventListener('click', () => {
+                    this.isMuted = !this.isMuted;
+                    soundToggle.classList.toggle('muted', this.isMuted);
+                });
+            } catch (e) {
+                console.warn("Web Audio API non supportata", e);
+            }
+        },
+        
+        // Crea tutti i suoni del gioco
+        createSounds() {
+            if (!this.context) return;
+            
+            // Suono di sparo del giocatore
+            this.sounds.playerShoot = {
+                play: () => {
+                    if (this.isMuted || !this.context) return;
+                    const oscillator = this.context.createOscillator();
+                    const gainNode = this.context.createGain();
+                    
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(900, this.context.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(300, this.context.currentTime + 0.1);
+                    
+                    gainNode.gain.setValueAtTime(0.3, this.context.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.00001, this.context.currentTime + 0.1);
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.context.destination);
+                    
+                    oscillator.start();
+                    oscillator.stop(this.context.currentTime + 0.1);
+                }
+            };
+            
+            // Suono di esplosione di un alieno
+            this.sounds.alienExplode = {
+                play: () => {
+                    if (this.isMuted || !this.context) return;
+                    const oscillator = this.context.createOscillator();
+                    const gainNode = this.context.createGain();
+                    
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(80, this.context.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(60, this.context.currentTime + 0.2);
+                    
+                    gainNode.gain.setValueAtTime(0.4, this.context.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.00001, this.context.currentTime + 0.2);
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.context.destination);
+                    
+                    oscillator.start();
+                    oscillator.stop(this.context.currentTime + 0.2);
+                }
+            };
+            
+            // Suono di esplosione del giocatore
+            this.sounds.playerExplode = {
+                play: () => {
+                    if (this.isMuted || !this.context) return;
+                    const oscillator = this.context.createOscillator();
+                    const gainNode = this.context.createGain();
+                    
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(60, this.context.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(30, this.context.currentTime + 0.8);
+                    
+                    gainNode.gain.setValueAtTime(0.5, this.context.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.00001, this.context.currentTime + 0.8);
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.context.destination);
+                    
+                    oscillator.start();
+                    oscillator.stop(this.context.currentTime + 0.8);
+                }
+            };
+            
+            // Suono di movimento degli alieni
+            this.sounds.alienMove = {
+                play: () => {
+                    if (this.isMuted || !this.context) return;
+                    
+                    // Quattro note che si alternano come nel gioco originale
+                    const frequencies = [480, 440, 400, 360];
+                    const duration = 0.05;
+                    
+                    const oscillator = this.context.createOscillator();
+                    const gainNode = this.context.createGain();
+                    
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(frequencies[this.alienMoveStep], this.context.currentTime);
+                    
+                    gainNode.gain.setValueAtTime(0.2, this.context.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.00001, this.context.currentTime + duration);
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.context.destination);
+                    
+                    oscillator.start();
+                    oscillator.stop(this.context.currentTime + duration);
+                    
+                    // Cicla tra le 4 note
+                    this.alienMoveStep = (this.alienMoveStep + 1) % 4;
+                }
+            };
+            
+            // Suono UFO
+            this.sounds.ufo = {
+                oscillator: null,
+                gainNode: null,
+                
+                play: () => {
+                    if (this.isMuted || !this.context || this.sounds.ufo.oscillator) return;
+                    
+                    const oscillator = this.context.createOscillator();
+                    const gainNode = this.context.createGain();
+                    
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(180, this.context.currentTime);
+                    
+                    // Modulazione della frequenza per ottenere quel suono "UFO" caratteristico
+                    const lfo = this.context.createOscillator();
+                    lfo.type = 'sine';
+                    lfo.frequency.setValueAtTime(8, this.context.currentTime);
+                    
+                    const lfoGain = this.context.createGain();
+                    lfoGain.gain.setValueAtTime(20, this.context.currentTime);
+                    
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(oscillator.frequency);
+                    
+                    gainNode.gain.setValueAtTime(0.2, this.context.currentTime);
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.context.destination);
+                    
+                    lfo.start();
+                    oscillator.start();
+                    
+                    this.sounds.ufo.oscillator = oscillator;
+                    this.sounds.ufo.gainNode = gainNode;
+                    this.sounds.ufo.lfo = lfo;
+                },
+                
+                stop: () => {
+                    if (!this.sounds.ufo.oscillator) return;
+                    
+                    this.sounds.ufo.gainNode.gain.exponentialRampToValueAtTime(0.00001, this.context.currentTime + 0.1);
+                    
+                    setTimeout(() => {
+                        if (this.sounds.ufo.oscillator) {
+                            this.sounds.ufo.oscillator.stop();
+                            this.sounds.ufo.lfo.stop();
+                            this.sounds.ufo.oscillator = null;
+                            this.sounds.ufo.gainNode = null;
+                            this.sounds.ufo.lfo = null;
+                        }
+                    }, 100);
+                }
+            };
+        }
+    };
+
     // Gestione dei proiettili
     const bulletManager = {
         playerBullet: null,
@@ -119,7 +334,7 @@
         alienBulletSpeed: 200,
         bulletWidth: 2,
         bulletHeight: 10,
-        maxAlienBullets: 8, // Numero massimo di proiettili degli alieni contemporaneamente
+        maxAlienBullets: 12, // Aumentato il numero massimo di proiettili degli alieni
         
         // Crea un proiettile per il giocatore
         createPlayerBullet(x, y) {
@@ -131,6 +346,9 @@
                 color: '#fff',
                 active: true
             };
+            
+            // Riproduci effetto sonoro
+            audioSystem.sounds.playerShoot.play();
         },
         
         // Crea un proiettile per un alieno
@@ -362,9 +580,6 @@
                 // Imposta il cooldown per lo sparo successivo
                 this.canShoot = false;
                 this.shootCooldown = 0.3; // 0.3 secondi di cooldown
-                
-                // Riproduci effetto sonoro (simulato)
-                console.log("Suono: Sparo");
             }
         },
         
@@ -372,6 +587,9 @@
         explode() {
             this.exploding = true;
             this.explodeTime = 0;
+            
+            // Riproduci suono esplosione
+            audioSystem.sounds.playerExplode.play();
         },
         
         // Disegna il giocatore
@@ -559,6 +777,11 @@
             this.destroyedAliens = 0;
             this.exploding = {};
             
+            // Ferma il suono UFO se attivo
+            if (audioSystem.sounds.ufo) {
+                audioSystem.sounds.ufo.stop();
+            }
+            
             // Determina il tipo di alieno in base alla riga
             const getType = (row) => {
                 if (row === 0) return 0; // Prima riga: tipo calamaro
@@ -606,15 +829,15 @@
             if (this.animationTimer >= this.animationInterval) {
                 this.animationTimer = 0;
                 this.animationFrame = (this.animationFrame === 0) ? 1 : 0;
-                
-                // Suono del movimento (simulato)
-                console.log("Suono: Movimento alieno");
             }
             
             // Muovi gli invasori quando è tempo
             if (this.moveTimer >= this.moveInterval) {
                 this.moveTimer = 0;
                 this.move();
+                
+                // Riproduci suono movimento
+                audioSystem.sounds.alienMove.play();
                 
                 // Tentativo di sparo degli alieni
                 this.alienShoot();
@@ -628,6 +851,9 @@
                 if ((this.ufo.direction > 0 && this.ufo.x > game.width) || 
                     (this.ufo.direction < 0 && this.ufo.x + this.ufoWidth < 0)) {
                     this.ufo = null;
+                    
+                    // Ferma il suono UFO
+                    audioSystem.sounds.ufo.stop();
                 }
             }
             
@@ -708,8 +934,8 @@
                     active: true
                 };
                 
-                // Suono UFO (simulato)
-                console.log("Suono: UFO");
+                // Avvia il suono UFO
+                audioSystem.sounds.ufo.play();
             }
         },
         
@@ -726,8 +952,9 @@
                     timer: 0
                 };
                 
-                // Suono esplosione (simulato)
-                console.log("Suono: Esplosione UFO");
+                // Ferma il suono UFO e riproduci suono esplosione
+                audioSystem.sounds.ufo.stop();
+                audioSystem.sounds.alienExplode.play();
             }
         },
         
@@ -793,8 +1020,8 @@
                     timer: 0
                 };
                 
-                // Suono esplosione (simulato)
-                console.log("Suono: Esplosione invasore");
+                // Riproduci suono esplosione
+                audioSystem.sounds.alienExplode.play();
             }
         },
         
@@ -898,6 +1125,9 @@
             this.canvas = document.getElementById('gameCanvas');
             this.ctx = this.canvas.getContext('2d');
             
+            // Inizializza il sistema audio
+            audioSystem.init();
+            
             // Imposta dimensioni del canvas
             this.setCanvasSize();
             
@@ -981,6 +1211,12 @@
             // Gestisci il trascinamento sul canvas (per il movimento del cannone)
             canvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                
+                // Inizia l'audio se necessario (richiede interazione utente)
+                if (audioSystem.context && audioSystem.context.state === 'suspended') {
+                    audioSystem.context.resume();
+                }
+                
                 this.touchActive = true;
                 
                 // Ottieni la posizione del touch
@@ -1022,16 +1258,43 @@
             // Gestisci il pulsante di sparo
             fireButton.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                
+                // Inizia l'audio se necessario (richiede interazione utente)
+                if (audioSystem.context && audioSystem.context.state === 'suspended') {
+                    audioSystem.context.resume();
+                }
+                
                 player.shoot();
                 
                 // Continua a sparare se tieni premuto
-                const shootInterval = setInterval(() => {
-                    if (e.target.matches(':active')) {
-                        player.shoot();
-                    } else {
-                        clearInterval(shootInterval);
+                let intervalId = null;
+                
+                const startShooting = () => {
+                    if (!intervalId) {
+                        intervalId = setInterval(() => {
+                            player.shoot();
+                        }, 300);
                     }
-                }, 300);
+                };
+                
+                const stopShooting = () => {
+                    if (intervalId) {
+                        clearInterval(intervalId);
+                        intervalId = null;
+                    }
+                };
+                
+                // Continua a sparare finché il pulsante è premuto
+                startShooting();
+                
+                const touchEndListener = () => {
+                    stopShooting();
+                    fireButton.removeEventListener('touchend', touchEndListener);
+                    fireButton.removeEventListener('touchcancel', touchEndListener);
+                };
+                
+                fireButton.addEventListener('touchend', touchEndListener);
+                fireButton.addEventListener('touchcancel', touchEndListener);
             });
             
             // Abilita il riavvio del gioco quando si tocca lo schermo dopo un game over
@@ -1039,7 +1302,7 @@
             
             // Impedisci il comportamento predefinito di scrolling
             document.addEventListener('touchmove', (e) => {
-                if (e.target === canvas || e.target.id === 'fireButton') {
+                if (e.target === canvas || e.target.id === 'fireButton' || e.target.id === 'soundToggle') {
                     e.preventDefault();
                 }
             }, { passive: false });
@@ -1128,6 +1391,12 @@
         // Game over
         gameOver() {
             this.isRunning = false;
+            
+            // Ferma il suono UFO se attivo
+            if (audioSystem.sounds.ufo) {
+                audioSystem.sounds.ufo.stop();
+            }
+            
             // Mostra schermata di game over
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             this.ctx.fillRect(0, 0, this.width, this.height);
