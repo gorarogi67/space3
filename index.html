@@ -281,12 +281,12 @@
                     const gainNode = this.context.createGain();
                     
                     oscillator.type = 'square';
-                    oscillator.frequency.setValueAtTime(180, this.context.currentTime);
+                    oscillator.frequency.setValueAtTime(120, this.context.currentTime);
                     
                     // Modulazione della frequenza per ottenere quel suono "UFO" caratteristico
                     const lfo = this.context.createOscillator();
                     lfo.type = 'sine';
-                    lfo.frequency.setValueAtTime(8, this.context.currentTime);
+                    lfo.frequency.setValueAtTime(5, this.context.currentTime);
                     
                     const lfoGain = this.context.createGain();
                     lfoGain.gain.setValueAtTime(20, this.context.currentTime);
@@ -334,7 +334,7 @@
         alienBulletSpeed: 200,
         bulletWidth: 2,
         bulletHeight: 10,
-        maxAlienBullets: 12, // Aumentato il numero massimo di proiettili degli alieni
+        maxAlienBullets: 25, // Ulteriormente aumentato il numero massimo di proiettili degli alieni
         
         // Crea un proiettile per il giocatore
         createPlayerBullet(x, y) {
@@ -635,14 +635,14 @@
 
     // Gestione degli invasori alieni
     const invaders = {
-        rows: 5,
-        cols: 11,
+        rows: 6,
+        cols: 13,
         grid: [],
         width: 24,
         height: 16,
-        spacing: {x: 10, y: 15},
-        x: 0,
-        y: 60,
+        spacing: {x: 8, y: 12},
+        x: 15,
+        y: 45,
         speedX: 10,
         speedY: 20,
         moveDown: false,
@@ -652,7 +652,7 @@
         animationFrame: 0, // Frame corrente dell'animazione
         animationTimer: 0,
         animationInterval: 0.5, // Tempo tra i frame dell'animazione
-        shotChance: 0.02, // Probabilità di sparo per ogni alieno attivo
+        shotChance: 0.12, // Probabilità di sparo per ogni alieno attivo (aumentata significativamente)
         totalAliens: 0,
         destroyedAliens: 0,
         exploding: {},
@@ -767,8 +767,8 @@
         // Resetta gli invasori allo stato iniziale
         reset() {
             this.grid = [];
-            this.x = 30;
-            this.y = 60;
+            this.x = 15;
+            this.y = 45;
             this.direction = 1;
             this.moveTimer = 0;
             this.animationTimer = 0;
@@ -816,7 +816,7 @@
         // Aumenta la velocità degli invasori (per i livelli successivi)
         increaseSpeed(level) {
             this.moveInterval = Math.max(0.2, 1.0 - (level - 1) * 0.1);
-            this.shotChance = Math.min(0.05, 0.02 + (level - 1) * 0.005);
+            this.shotChance = Math.min(0.25, 0.12 + (level - 1) * 0.03);
         },
         
         // Aggiorna lo stato degli invasori
@@ -1081,7 +1081,14 @@
             const pixelSize = 1;
             const sprite = this.sprites[invader.type][this.animationFrame];
             
-            ctx.fillStyle = '#FFF';
+            // Colori diversi per ogni tipo di alieno
+            if (invader.type === 0) {
+                ctx.fillStyle = '#7FFF00'; // Verde per il tipo 0 (calamaro)
+            } else if (invader.type === 1) {
+                ctx.fillStyle = '#00BFFF'; // Blu per il tipo 1 (granchio)
+            } else {
+                ctx.fillStyle = '#FF00FF'; // Viola per il tipo 2 (polpo)
+            }
             
             for (let y = 0; y < sprite.length; y++) {
                 for (let x = 0; x < sprite[y].length; x++) {
