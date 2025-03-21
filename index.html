@@ -27,91 +27,56 @@
             image-rendering: crisp-edges;
             margin-bottom: 10px;
             max-width: 100%;
-            max-height: 70vh;
+            max-height: 80vh;
         }
         
         #controls {
             width: 100%;
+            max-width: 400px;
             display: flex;
             justify-content: space-between;
-            max-width: 600px;
-            margin-top: 10px;
+            margin-top: 5px;
+            margin-bottom: 5px;
         }
         
         .btn {
-            padding: 15px 0;
-            background-color: #222;
-            border: 3px solid #7FFF00;
+            padding: 8px 0;
+            width: 80px;
+            background-color: transparent;
+            border: 2px solid #7FFF00;
+            border-radius: 4px;
             color: #7FFF00;
             font-family: 'Courier New', monospace;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 20px;
+            font-size: 12px;
             text-align: center;
             user-select: none;
             -webkit-user-select: none;
             touch-action: manipulation;
             cursor: pointer;
-        }
-        
-        #leftBtn, #rightBtn {
-            width: 35%;
-        }
-        
-        #fireBtn {
-            width: 25%;
+            opacity: 0.8;
         }
         
         .btn:active {
-            background-color: #444;
+            background-color: #7FFF00;
+            color: #000;
+            opacity: 1;
         }
         
-        #instructions {
-            margin-top: 15px;
-            text-align: center;
-            font-size: 14px;
-            color: #999;
-        }
-        
-        @media (orientation: landscape) {
-            #gameArea {
-                display: flex;
-                flex-direction: row;
-                align-items: center;
-                justify-content: center;
-                width: 100%;
-            }
-            
-            #gameCanvas {
-                margin-bottom: 0;
-                margin-right: 10px;
-                max-height: 85vh;
-            }
-            
-            #controls {
-                flex-direction: column;
-                height: 85vh;
-                max-width: 150px;
-                margin-top: 0;
-            }
-            
-            #leftBtn, #rightBtn, #fireBtn {
-                width: 100%;
-                height: 20%;
-            }
+        #fireBtn {
+            width: 100px;
+            background-color: rgba(127, 255, 0, 0.1);
         }
     </style>
 </head>
 <body>
-    <div id="gameArea">
-        <canvas id="gameCanvas"></canvas>
-        <div id="controls">
-            <div class="btn" id="leftBtn">← Sinistra</div>
-            <div class="btn" id="fireBtn">Spara</div>
-            <div class="btn" id="rightBtn">Destra →</div>
-        </div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">
+        <div class="btn" id="leftBtn">← Sinistra</div>
+        <div class="btn" id="fireBtn">Spara</div>
+        <div class="btn" id="rightBtn">Destra →</div>
     </div>
-    <div id="instructions">Per giocare: Usa i pulsanti o trascina sul canvas per muoverti e tocca per sparare</div>
     
     <script>
     // Gestione dei proiettili
@@ -1008,27 +973,6 @@
                 this.touchX = touchX;
             });
             
-            this.canvas.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = this.canvas.getBoundingClientRect();
-                const touchX = (touch.clientX - rect.left) / this.scaleFactor;
-                
-                // Aggiorna il movimento del giocatore in base alla posizione del tocco
-                if (touchX < this.width / 3) {
-                    player.movingLeft = true;
-                    player.movingRight = false;
-                } else if (touchX > this.width * 2/3) {
-                    player.movingRight = true;
-                    player.movingLeft = false;
-                } else {
-                    player.movingLeft = false;
-                    player.movingRight = false;
-                }
-                
-                this.touchX = touchX;
-            });
-            
             this.canvas.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 player.movingLeft = false;
@@ -1391,13 +1335,6 @@
             
             // Disegna l'interfaccia (punteggio, vite, ecc.)
             this.renderUI();
-            
-            // Debug: visualizza l'area di touch se attiva
-            if (this.touchX !== null) {
-                const touchAreaSize = 5;
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                ctx.fillRect(this.touchX - touchAreaSize/2, this.height - 40, touchAreaSize, touchAreaSize);
-            }
         },
         
         // Disegna l'interfaccia utente
