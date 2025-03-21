@@ -2,13 +2,14 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Space Invaders</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
@@ -16,6 +17,7 @@
             font-family: 'Courier New', monospace;
             overflow: hidden;
             color: #fff;
+            touch-action: none;
         }
 
         #gameCanvas {
@@ -23,18 +25,93 @@
             background-color: #000;
             image-rendering: pixelated;
             image-rendering: crisp-edges;
+            margin-bottom: 10px;
+            max-width: 100%;
+            max-height: 70vh;
         }
         
-        .pixel-font {
+        #controls {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            max-width: 600px;
+            margin-top: 10px;
+        }
+        
+        .btn {
+            padding: 15px 0;
+            background-color: #222;
+            border: 3px solid #7FFF00;
+            color: #7FFF00;
             font-family: 'Courier New', monospace;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            font-size: 20px;
+            text-align: center;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            cursor: pointer;
+        }
+        
+        #leftBtn, #rightBtn {
+            width: 35%;
+        }
+        
+        #fireBtn {
+            width: 25%;
+        }
+        
+        .btn:active {
+            background-color: #444;
+        }
+        
+        #instructions {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 14px;
+            color: #999;
+        }
+        
+        @media (orientation: landscape) {
+            #gameArea {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+            }
+            
+            #gameCanvas {
+                margin-bottom: 0;
+                margin-right: 10px;
+                max-height: 85vh;
+            }
+            
+            #controls {
+                flex-direction: column;
+                height: 85vh;
+                max-width: 150px;
+                margin-top: 0;
+            }
+            
+            #leftBtn, #rightBtn, #fireBtn {
+                width: 100%;
+                height: 20%;
+            }
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
+    <div id="gameArea">
+        <canvas id="gameCanvas"></canvas>
+        <div id="controls">
+            <div class="btn" id="leftBtn">← Sinistra</div>
+            <div class="btn" id="fireBtn">Spara</div>
+            <div class="btn" id="rightBtn">Destra →</div>
+        </div>
+    </div>
+    <div id="instructions">Per giocare: Usa i pulsanti o trascina sul canvas per muoverti e tocca per sparare</div>
     
     <script>
     // Gestione dei proiettili
@@ -805,6 +882,8 @@
         ufoInterval: 15000, // Intervallo di apparizione dell'UFO (15 secondi)
         ufoTimer: 0,
         defenseBunkers: [],
+        touchX: null,
+        scaleFactor: 1,
         
         // Inizializza il gioco
         init() {
@@ -813,8 +892,7 @@
             this.ctx = this.canvas.getContext('2d');
             
             // Imposta dimensioni del canvas
-            this.canvas.width = this.width;
-            this.canvas.height = this.height;
+            this.setCanvasSize();
             
             // Inizializza oggetti di gioco
             player.init();
@@ -827,8 +905,143 @@
             window.addEventListener('keydown', this.handleKeyDown.bind(this));
             window.addEventListener('keyup', this.handleKeyUp.bind(this));
             
+            // Aggiungi controlli touch
+            this.setupTouchControls();
+            
+            // Gestisci il ridimensionamento del browser
+            window.addEventListener('resize', this.handleResize.bind(this));
+            
             // Avvia il gioco
             this.start();
+        },
+        
+        // Imposta le dimensioni del canvas in base alla finestra
+        setCanvasSize() {
+            const containerWidth = window.innerWidth > 800 ? 600 : window.innerWidth - 20;
+            const containerHeight = window.innerHeight > 800 ? 500 : window.innerHeight * 0.7;
+            
+            // Mantieni le proporzioni originali
+            const aspectRatio = 600 / 500;
+            let width, height;
+            
+            if (containerWidth / containerHeight > aspectRatio) {
+                height = containerHeight;
+                width = height * aspectRatio;
+            } else {
+                width = containerWidth;
+                height = width / aspectRatio;
+            }
+            
+            this.canvas.style.width = `${width}px`;
+            this.canvas.style.height = `${height}px`;
+            
+            // Imposta le dimensioni effettive del canvas
+            this.canvas.width = this.width;
+            this.canvas.height = this.height;
+            
+            // Calcola il fattore di scala per i controlli touch
+            this.scaleFactor = width / this.width;
+        },
+        
+        // Gestisce il ridimensionamento della finestra
+        handleResize() {
+            this.setCanvasSize();
+        },
+        
+        // Configura i controlli touch
+        setupTouchControls() {
+            // Pulsanti fisici
+            const leftBtn = document.getElementById('leftBtn');
+            const rightBtn = document.getElementById('rightBtn');
+            const fireBtn = document.getElementById('fireBtn');
+            
+            // Eventi touch per i pulsanti
+            leftBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                player.movingLeft = true;
+                player.movingRight = false;
+            });
+            
+            leftBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                player.movingLeft = false;
+            });
+            
+            rightBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                player.movingRight = true;
+                player.movingLeft = false;
+            });
+            
+            rightBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                player.movingRight = false;
+            });
+            
+            fireBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                player.shoot();
+            });
+            
+            // Eventi touch sul canvas
+            this.canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = this.canvas.getBoundingClientRect();
+                const touchX = (touch.clientX - rect.left) / this.scaleFactor;
+                
+                // Tocco sulla metà sinistra del canvas muove a sinistra
+                if (touchX < this.width / 3) {
+                    player.movingLeft = true;
+                    player.movingRight = false;
+                }
+                // Tocco sulla metà destra del canvas muove a destra
+                else if (touchX > this.width * 2/3) {
+                    player.movingRight = true;
+                    player.movingLeft = false;
+                }
+                // Tocco centrale spara
+                else {
+                    player.shoot();
+                }
+                
+                this.touchX = touchX;
+            });
+            
+            this.canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = this.canvas.getBoundingClientRect();
+                const touchX = (touch.clientX - rect.left) / this.scaleFactor;
+                
+                // Aggiorna il movimento del giocatore in base alla posizione del tocco
+                if (touchX < this.width / 3) {
+                    player.movingLeft = true;
+                    player.movingRight = false;
+                } else if (touchX > this.width * 2/3) {
+                    player.movingRight = true;
+                    player.movingLeft = false;
+                } else {
+                    player.movingLeft = false;
+                    player.movingRight = false;
+                }
+                
+                this.touchX = touchX;
+            });
+            
+            this.canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                player.movingLeft = false;
+                player.movingRight = false;
+                this.touchX = null;
+            });
+            
+            // Impedisci il comportamento predefinito di scrolling
+            document.addEventListener('touchmove', (e) => {
+                if (e.target === this.canvas || e.target.className === 'btn') {
+                    e.preventDefault();
+                }
+            }, { passive: false });
         },
         
         // Crea i bunker difensivi
@@ -923,7 +1136,18 @@
             
             this.ctx.font = '16px Courier New';
             this.ctx.fillText(`PUNTEGGIO: ${this.score}`, this.width / 2, this.height / 2);
-            this.ctx.fillText('PREMI INVIO PER RICOMINCIARE', this.width / 2, this.height / 2 + 50);
+            this.ctx.fillText('TOCCA PER RICOMINCIARE', this.width / 2, this.height / 2 + 50);
+            
+            // Aggiungi listener per ricominciare con il touch
+            this.canvas.addEventListener('touchstart', this.handleRestartTouch.bind(this), { once: true });
+        },
+        
+        // Gestisce il touch per ricominciare
+        handleRestartTouch(e) {
+            e.preventDefault();
+            if (!this.isRunning) {
+                this.start();
+            }
         },
         
         // Avanza al livello successivo
@@ -1167,6 +1391,13 @@
             
             // Disegna l'interfaccia (punteggio, vite, ecc.)
             this.renderUI();
+            
+            // Debug: visualizza l'area di touch se attiva
+            if (this.touchX !== null) {
+                const touchAreaSize = 5;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fillRect(this.touchX - touchAreaSize/2, this.height - 40, touchAreaSize, touchAreaSize);
+            }
         },
         
         // Disegna l'interfaccia utente
