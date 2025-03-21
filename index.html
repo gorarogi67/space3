@@ -5,77 +5,109 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Space Invaders</title>
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+            touch-action: none;
+            position: fixed;
+        }
+
+        #gameContainer {
+            width: 100%;
+            height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            background-color: #000;
-            font-family: 'Courier New', monospace;
-            overflow: hidden;
-            color: #fff;
-            touch-action: none;
+            position: relative;
         }
 
         #gameCanvas {
-            border: 2px solid #333;
             background-color: #000;
             image-rendering: pixelated;
             image-rendering: crisp-edges;
-            margin-bottom: 10px;
-            max-width: 100%;
-            max-height: 80vh;
-        }
-        
-        #controls {
             width: 100%;
-            max-width: 400px;
-            display: flex;
-            justify-content: space-between;
-            margin-top: 5px;
-            margin-bottom: 5px;
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+            margin: 0 auto;
         }
         
-        .btn {
-            padding: 8px 0;
+        #fireButton {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
             width: 80px;
-            background-color: transparent;
-            border: 2px solid #7FFF00;
-            border-radius: 4px;
+            height: 80px;
+            background-color: rgba(127, 255, 0, 0.2);
+            border: 2px solid rgba(127, 255, 0, 0.7);
+            border-radius: 50%;
             color: #7FFF00;
             font-family: 'Courier New', monospace;
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 12px;
+            font-size: 14px;
             text-align: center;
             user-select: none;
             -webkit-user-select: none;
             touch-action: manipulation;
-            cursor: pointer;
             opacity: 0.8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
         }
         
-        .btn:active {
-            background-color: #7FFF00;
-            color: #000;
+        #fireButton:active {
+            background-color: rgba(127, 255, 0, 0.4);
             opacity: 1;
         }
         
-        #fireBtn {
-            width: 100px;
-            background-color: rgba(127, 255, 0, 0.1);
+        #touchInfo {
+            position: absolute;
+            left: 20px;
+            bottom: 20px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            z-index: 2;
+        }
+        
+        /* Stile per la rotazione dell'orientamento */
+        @media (orientation: landscape) {
+            #fireButton {
+                width: 100px;
+                height: 100px;
+                font-size: 16px;
+            }
+        }
+        
+        /* Stile per iPad Pro */
+        @media (min-width: 1024px) {
+            #fireButton {
+                width: 120px;
+                height: 120px;
+                font-size: 18px;
+            }
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
-    <div id="controls">
-        <div class="btn" id="leftBtn">← Sinistra</div>
-        <div class="btn" id="fireBtn">Spara</div>
-        <div class="btn" id="rightBtn">Destra →</div>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="fireButton">SPARA</div>
+        <div id="touchInfo">Trascina per muovere</div>
     </div>
     
     <script>
@@ -233,7 +265,7 @@
         y: 0,
         width: 26,
         height: 16,
-        speed: 200,
+        speed: 300,
         color: '#7FFF00',
         movingLeft: false,
         movingRight: false,
@@ -278,6 +310,15 @@
             this.explodeTime = 0;
         },
         
+        // Imposta la posizione X diretta del giocatore
+        setPositionX(xPos) {
+            // Aggiusta per centrare il cannone alla posizione del dito
+            const adjustedX = xPos - (this.width / 2);
+            
+            // Mantieni il giocatore entro i confini dello schermo
+            this.x = Math.max(0, Math.min(game.width - this.width, adjustedX));
+        },
+        
         // Aggiorna lo stato del giocatore
         update() {
             if (this.exploding) {
@@ -289,7 +330,7 @@
                 return;
             }
             
-            // Movimento orizzontale
+            // Movimento orizzontale (per tastiera)
             if (this.movingLeft && this.x > 0) {
                 this.x -= this.speed * game.deltaTime;
             } else if (this.movingRight && this.x < game.width - this.width) {
@@ -320,7 +361,7 @@
                 
                 // Imposta il cooldown per lo sparo successivo
                 this.canShoot = false;
-                this.shootCooldown = 0.5; // 0.5 secondi di cooldown
+                this.shootCooldown = 0.3; // 0.3 secondi di cooldown
                 
                 // Riproduci effetto sonoro (simulato)
                 console.log("Suono: Sparo");
@@ -847,8 +888,9 @@
         ufoInterval: 15000, // Intervallo di apparizione dell'UFO (15 secondi)
         ufoTimer: 0,
         defenseBunkers: [],
-        touchX: null,
         scaleFactor: 1,
+        touchActive: false,
+        touchTimer: null,
         
         // Inizializza il gioco
         init() {
@@ -876,113 +918,128 @@
             // Gestisci il ridimensionamento del browser
             window.addEventListener('resize', this.handleResize.bind(this));
             
+            // Gestisci cambiamenti di orientamento
+            window.addEventListener('orientationchange', this.handleResize.bind(this));
+            
             // Avvia il gioco
             this.start();
         },
         
         // Imposta le dimensioni del canvas in base alla finestra
         setCanvasSize() {
-            const containerWidth = window.innerWidth > 800 ? 600 : window.innerWidth - 20;
-            const containerHeight = window.innerHeight > 800 ? 500 : window.innerHeight * 0.7;
+            // Ottieni le dimensioni del container
+            const container = document.getElementById('gameContainer');
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
             
-            // Mantieni le proporzioni originali
-            const aspectRatio = 600 / 500;
-            let width, height;
-            
-            if (containerWidth / containerHeight > aspectRatio) {
-                height = containerHeight;
-                width = height * aspectRatio;
-            } else {
-                width = containerWidth;
-                height = width / aspectRatio;
-            }
-            
-            this.canvas.style.width = `${width}px`;
-            this.canvas.style.height = `${height}px`;
+            // Calcola il rapporto di scala ottimale
+            const scaleX = containerWidth / this.width;
+            const scaleY = containerHeight / this.height;
+            const scale = Math.min(scaleX, scaleY);
             
             // Imposta le dimensioni effettive del canvas
             this.canvas.width = this.width;
             this.canvas.height = this.height;
             
-            // Calcola il fattore di scala per i controlli touch
-            this.scaleFactor = width / this.width;
+            // Imposta le dimensioni di rendering
+            const renderWidth = Math.floor(this.width * scale);
+            const renderHeight = Math.floor(this.height * scale);
+            
+            this.canvas.style.width = `${renderWidth}px`;
+            this.canvas.style.height = `${renderHeight}px`;
+            
+            // Salva il fattore di scala per i controlli touch
+            this.scaleFactor = scale;
+            
+            // Aggiorna lo stile per mantenere il pixel art crisp
+            this.ctx.imageSmoothingEnabled = false;
         },
         
         // Gestisce il ridimensionamento della finestra
         handleResize() {
-            this.setCanvasSize();
+            // Piccolo ritardo per permettere al browser di completare il ridimensionamento
+            setTimeout(() => {
+                this.setCanvasSize();
+            }, 100);
         },
         
         // Configura i controlli touch
         setupTouchControls() {
-            // Pulsanti fisici
-            const leftBtn = document.getElementById('leftBtn');
-            const rightBtn = document.getElementById('rightBtn');
-            const fireBtn = document.getElementById('fireBtn');
+            const canvas = this.canvas;
+            const fireButton = document.getElementById('fireButton');
             
-            // Eventi touch per i pulsanti
-            leftBtn.addEventListener('touchstart', (e) => {
+            // Funzione per convertire le coordinate del touch in coordinate di gioco
+            const getTouchPos = (canvas, touchEvent) => {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                return {
+                    x: (touchEvent.clientX - rect.left) * scaleX,
+                    y: (touchEvent.clientY - rect.top) * scaleX
+                };
+            };
+            
+            // Gestisci il trascinamento sul canvas (per il movimento del cannone)
+            canvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                player.movingLeft = true;
-                player.movingRight = false;
+                this.touchActive = true;
+                
+                // Ottieni la posizione del touch
+                const touchPos = getTouchPos(canvas, e.touches[0]);
+                player.setPositionX(touchPos.x);
+                
+                // Imposta un timer per il touch & hold (per sparare continuamente)
+                this.touchTimer = setTimeout(() => {
+                    if (this.touchActive) {
+                        player.shoot();
+                        
+                        // Ripeti lo sparo ogni 300ms se il dito è ancora premuto
+                        const shootInterval = setInterval(() => {
+                            if (this.touchActive) {
+                                player.shoot();
+                            } else {
+                                clearInterval(shootInterval);
+                            }
+                        }, 300);
+                    }
+                }, 500); // Attendi 500ms prima di considerare un "hold"
             });
             
-            leftBtn.addEventListener('touchend', (e) => {
+            canvas.addEventListener('touchmove', (e) => {
                 e.preventDefault();
-                player.movingLeft = false;
+                if (this.touchActive) {
+                    // Ottieni la posizione del touch
+                    const touchPos = getTouchPos(canvas, e.touches[0]);
+                    player.setPositionX(touchPos.x);
+                }
             });
             
-            rightBtn.addEventListener('touchstart', (e) => {
+            canvas.addEventListener('touchend', (e) => {
                 e.preventDefault();
-                player.movingRight = true;
-                player.movingLeft = false;
+                this.touchActive = false;
+                clearTimeout(this.touchTimer);
             });
             
-            rightBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                player.movingRight = false;
-            });
-            
-            fireBtn.addEventListener('touchstart', (e) => {
+            // Gestisci il pulsante di sparo
+            fireButton.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 player.shoot();
+                
+                // Continua a sparare se tieni premuto
+                const shootInterval = setInterval(() => {
+                    if (e.target.matches(':active')) {
+                        player.shoot();
+                    } else {
+                        clearInterval(shootInterval);
+                    }
+                }, 300);
             });
             
-            // Eventi touch sul canvas
-            this.canvas.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = this.canvas.getBoundingClientRect();
-                const touchX = (touch.clientX - rect.left) / this.scaleFactor;
-                
-                // Tocco sulla metà sinistra del canvas muove a sinistra
-                if (touchX < this.width / 3) {
-                    player.movingLeft = true;
-                    player.movingRight = false;
-                }
-                // Tocco sulla metà destra del canvas muove a destra
-                else if (touchX > this.width * 2/3) {
-                    player.movingRight = true;
-                    player.movingLeft = false;
-                }
-                // Tocco centrale spara
-                else {
-                    player.shoot();
-                }
-                
-                this.touchX = touchX;
-            });
-            
-            this.canvas.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                player.movingLeft = false;
-                player.movingRight = false;
-                this.touchX = null;
-            });
+            // Abilita il riavvio del gioco quando si tocca lo schermo dopo un game over
+            canvas.addEventListener('touchstart', this.handleRestartTouch.bind(this));
             
             // Impedisci il comportamento predefinito di scrolling
             document.addEventListener('touchmove', (e) => {
-                if (e.target === this.canvas || e.target.className === 'btn') {
+                if (e.target === canvas || e.target.id === 'fireButton') {
                     e.preventDefault();
                 }
             }, { passive: false });
@@ -1007,6 +1064,8 @@
                 [1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1],
                 [1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1]
             ];
+            
+            this.defenseBunkers = [];
             
             // Crea i bunker
             for (let i = 0; i < bunkerCount; i++) {
@@ -1081,15 +1140,12 @@
             this.ctx.font = '16px Courier New';
             this.ctx.fillText(`PUNTEGGIO: ${this.score}`, this.width / 2, this.height / 2);
             this.ctx.fillText('TOCCA PER RICOMINCIARE', this.width / 2, this.height / 2 + 50);
-            
-            // Aggiungi listener per ricominciare con il touch
-            this.canvas.addEventListener('touchstart', this.handleRestartTouch.bind(this), { once: true });
         },
         
         // Gestisce il touch per ricominciare
         handleRestartTouch(e) {
-            e.preventDefault();
             if (!this.isRunning) {
+                e.preventDefault();
                 this.start();
             }
         },
@@ -1376,6 +1432,7 @@
 
     // Inizializza il gioco quando la pagina è caricata
     window.addEventListener('load', () => {
+        // Inizializza il gioco
         game.init();
     });
     </script>
