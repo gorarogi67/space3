@@ -22,6 +22,8 @@
             background-color: black;
             display: block;
             margin-bottom: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            border: 2px solid rgba(0, 255, 0, 0.5);
         }
 
         #controls {
@@ -49,11 +51,14 @@
             justify-content: center;
             align-items: center;
             transition: background-color 0.2s;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+            border-radius: 5px;
         }
 
         .control-btn:active {
             background-color: #00FF00;
             color: #000;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
         }
 
         #fire-btn {
@@ -67,6 +72,7 @@
             font-size: 16px;
             margin-top: 15px;
             text-align: center;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
         }
 
         @media (max-width: 800px) {
@@ -114,97 +120,143 @@
         let level = 1;
         let animationFrame = 0;
         let animationCounter = 0;
+        let ufo = null;
+        let explosions = [];
+        let stars = [];
         
-        // Sprite per gli elementi del gioco
+        // Sprite per gli elementi del gioco con maggiore definizione
         const sprites = {
             player: [
-                "  ####  ",
-                " ###### ",
-                "########"
+                "    ######    ",
+                "   ########   ",
+                "  ##########  ",
+                " ############ ",
+                " ############## ",
+                "################",
+                "##################",
+                "##################"
             ],
-            // Ogni tipo di alieno ha due frame di animazione
+            // Ogni tipo di alieno ha due frame di animazione con maggiore definizione
             invader1: [
                 [
-                    "  ##  ",
-                    " #### ",
-                    "##  ##",
-                    "######",
-                    "# ## #",
-                    "# ## #"
+                    "    ####    ",
+                    "   ######   ",
+                    "  ########  ",
+                    " ## #### ## ",
+                    "############",
+                    "# ######## #",
+                    "# #      # #",
+                    "   ##  ##   "
                 ],
                 [
-                    "  ##  ",
-                    " #### ",
-                    "##  ##",
-                    "######",
-                    "## ##",
-                    "# # #"
+                    "    ####    ",
+                    "   ######   ",
+                    "  ########  ",
+                    " ## #### ## ",
+                    "############",
+                    "# ######## #",
+                    "   #    #   ",
+                    "  ##    ##  "
                 ]
             ],
             invader2: [
                 [
-                    " #    # ",
-                    "#  ##  #",
-                    "########",
-                    "## ## ##",
-                    "########",
-                    " #    # ",
-                    "#      #"
+                    "   ##     ##   ",
+                    "    ##   ##    ",
+                    "   #########   ",
+                    "  ###########  ",
+                    " ##### ##### ",
+                    "############",
+                    "# ##    ## #",
+                    "#          #"
                 ],
                 [
-                    " #    # ",
-                    "# #  # #",
-                    "########",
-                    "## ## ##",
-                    "########",
-                    "  #  #  ",
-                    " #    # "
+                    "   ##     ##   ",
+                    "    ##   ##    ",
+                    "   #########   ",
+                    "  ###########  ",
+                    " ##### ##### ",
+                    "############",
+                    "  ##    ##  ",
+                    " #        # "
                 ]
             ],
             invader3: [
                 [
-                    "  ####  ",
-                    " ###### ",
-                    "##    ##",
-                    "## ## ##",
-                    "########",
-                    " ## ## ",
-                    "#  ##  #"
+                    "     ####     ",
+                    "    ######    ",
+                    "   ########   ",
+                    "  ##  ##  ##  ",
+                    " ########### ",
+                    "##############",
+                    "# ##      ## #",
+                    "#  ##    ##  #"
                 ],
                 [
-                    "  ####  ",
-                    " ###### ",
-                    "##    ##",
-                    "# #### #",
-                    "########",
-                    " #    # ",
-                    "# #  # #"
+                    "     ####     ",
+                    "    ######    ",
+                    "   ########   ",
+                    "  ##  ##  ##  ",
+                    " ########### ",
+                    "##############",
+                    " #  ####  # ",
+                    "#  #    #  #"
                 ]
             ],
             ufo: [
-                "  ####  ",
-                " ###### ",
-                "## ## ##",
-                "########",
-                "  #  #  "
+                "     ########     ",
+                "   ############   ",
+                "  ##############  ",
+                " ###### ###### ",
+                "##################",
+                "   # ######## #   ",
+                "    #        #    "
             ],
             explosion: [
-                "#      #",
-                " #    # ",
-                "  ####  ",
-                " #    # ",
-                "#      #"
+                "#    #    #",
+                " #   #   # ",
+                "  #  #  #  ",
+                "   # # #   ",
+                "    ###    ",
+                "   # # #   ",
+                "  #  #  #  ",
+                " #   #   # ",
+                "#    #    #"
             ],
             barrier: [
-                "  ####  ",
-                " ###### ",
-                "########",
-                "###  ###",
-                "##    ##"
+                "    ########    ",
+                "   ##########   ",
+                "  ############  ",
+                " ############## ",
+                "################",
+                "################",
+                "##### ###### ###",
+                "####  ####  ####",
+                "###    ##    ###"
             ]
         };
 
-        // Funzione per disegnare sprite pixel per pixel
+        // Crea stelle per lo sfondo
+        function createStars() {
+            for (let i = 0; i < 100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 1,
+                    brightness: Math.random()
+                });
+            }
+        }
+
+        // Disegna le stelle
+        function drawStars() {
+            stars.forEach(star => {
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + 0.7 * star.brightness})`;
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+        }
+
+        // Funzione per disegnare sprite pixel per pixel con maggiore definizione
         function drawSprite(sprite, x, y, scale, color) {
             ctx.fillStyle = color || 'white';
             for (let row = 0; row < sprite.length; row++) {
@@ -219,15 +271,15 @@
         // Classe per il giocatore
         class Player {
             constructor() {
-                this.width = 8 * 3; // 8px × 3 scale
-                this.height = 3 * 3; // 3px × 3 scale
+                this.width = 16 * 2; // 16px × 2 scale
+                this.height = 8 * 2; // 8px × 2 scale
                 this.x = canvas.width / 2 - this.width / 2;
                 this.y = canvas.height - 50;
                 this.speed = 5;
                 this.movingLeft = false;
                 this.movingRight = false;
                 this.shootCooldown = 0;
-                this.scale = 3;
+                this.scale = 2;
             }
 
             draw() {
@@ -236,8 +288,13 @@
 
             shoot() {
                 if (this.shootCooldown <= 0) {
-                    playerBullets.push(new Bullet(this.x + this.width / 2 - 1, this.y, -8, 'white'));
-                    this.shootCooldown = 20;
+                    playerBullets.push(new Bullet(this.x + this.width / 2 - 1, this.y, -10, 'white'));
+                    this.shootCooldown = 15; // Cooldown più breve
+                    
+                    // Effetto sonoro di sparo (simulato con vibrazione su dispositivi mobili)
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
                 }
             }
 
@@ -252,31 +309,34 @@
             }
         }
 
-        // Classe per gli invasori
+        // Classe per gli invasori con maggiore definizione
         class Invader {
             constructor(x, y, type) {
-                this.width = 8 * 3; // 8px × 3 scale
-                this.height = 8 * 3; // 8px × 3 scale
+                this.width = 16 * 2; // 16px × 2 scale
+                this.height = 8 * 2; // 8px × 2 scale
                 this.x = x;
                 this.y = y;
                 this.type = type || Math.floor(Math.random() * 3);
                 this.speed = 0.5 + level * 0.1;
                 this.direction = 1;
-                this.scale = 3;
-                this.shootChance = 0.001;
+                this.scale = 2;
+                this.shootChance = 0.001 + (level * 0.0005);
             }
 
             draw() {
                 let sprite;
-                let color = 'white';
+                let color;
                 
                 // Seleziona lo sprite in base al tipo e al frame di animazione
                 if (this.type === 0) {
                     sprite = sprites.invader1[animationFrame];
+                    color = 'white'; // Alieno tipo 1: bianco
                 } else if (this.type === 1) {
                     sprite = sprites.invader2[animationFrame];
+                    color = 'white'; // Alieno tipo 2: bianco
                 } else {
                     sprite = sprites.invader3[animationFrame];
+                    color = 'white'; // Alieno tipo 3: bianco
                 }
                 
                 drawSprite(sprite, this.x, this.y, this.scale, color);
@@ -296,11 +356,61 @@
             }
         }
 
-        // Classe per i proiettili
+        // Classe per l'UFO bonus
+        class Ufo {
+            constructor() {
+                this.width = 16 * 2;
+                this.height = 7 * 2;
+                this.x = -this.width;
+                this.y = 30;
+                this.speed = 2;
+                this.scale = 2;
+                this.active = true;
+                this.points = Math.floor(Math.random() * 3 + 1) * 50; // 50, 100, o 150 punti
+            }
+
+            draw() {
+                drawSprite(sprites.ufo, this.x, this.y, this.scale, '#FF0000'); // UFO rosso
+            }
+
+            update() {
+                this.x += this.speed;
+                
+                if (this.x > canvas.width) {
+                    this.active = false;
+                }
+            }
+        }
+
+        // Classe per effetti di esplosione
+        class Explosion {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.scale = 2;
+                this.frame = 0;
+                this.maxFrames = 20;
+                this.color = color || 'white';
+            }
+
+            draw() {
+                const alpha = 1 - (this.frame / this.maxFrames);
+                ctx.globalAlpha = alpha;
+                drawSprite(sprites.explosion, this.x, this.y, this.scale, this.color);
+                ctx.globalAlpha = 1.0;
+            }
+
+            update() {
+                this.frame++;
+                return this.frame < this.maxFrames;
+            }
+        }
+
+        // Classe per i proiettili migliorati
         class Bullet {
             constructor(x, y, speed, color) {
                 this.width = 2;
-                this.height = 8;
+                this.height = 10;
                 this.x = x - this.width / 2;
                 this.y = y;
                 this.speed = speed;
@@ -309,32 +419,86 @@
 
             draw() {
                 ctx.fillStyle = this.color;
+                
+                // Disegna un proiettile più elegante (come una piccola scia)
                 ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.fillRect(this.x - 1, this.y + 3, this.width + 2, this.height - 6); // Parte centrale più larga
             }
 
             update() {
                 this.y += this.speed;
+                
+                // Aggiungi un leggero movimento casuale per un effetto più dinamico
+                this.x += Math.random() * 0.6 - 0.3;
             }
         }
 
-        // Classe per le barriere
+        // Classe per le barriere con maggiore definizione
         class Barrier {
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                this.width = 8 * 4;
-                this.height = 5 * 4;
-                this.scale = 4;
+                this.width = 16 * 3;
+                this.height = 9 * 3;
+                this.scale = 3;
                 this.health = 4;
+                this.maxHealth = 4;
+                // Mappa dei danni per la barriera
+                this.damageMap = Array(9).fill().map(() => Array(16).fill(false));
             }
 
             draw() {
-                drawSprite(sprites.barrier, this.x, this.y, this.scale, '#00FF00');
+                // Disegna la barriera con il colore che varia in base alla salute
+                const healthPercent = this.health / this.maxHealth;
+                let color;
+                
+                if (healthPercent > 0.7) color = '#00FF00';  // Verde per barriera intatta
+                else if (healthPercent > 0.3) color = '#CCFF00';  // Giallo-verde per barriera danneggiata
+                else color = '#FF6600';  // Arancione per barriera molto danneggiata
+                
+                drawSprite(sprites.barrier, this.x, this.y, this.scale, color);
+                
+                // Disegna i danni
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+                for (let row = 0; row < this.damageMap.length; row++) {
+                    for (let col = 0; col < this.damageMap[row].length; col++) {
+                        if (this.damageMap[row][col]) {
+                            ctx.fillRect(this.x + col * this.scale, this.y + row * this.scale, this.scale, this.scale);
+                        }
+                    }
+                }
             }
 
-            hit() {
-                this.health--;
-                return this.health <= 0;
+            addDamage(hitX, hitY) {
+                // Calcola la posizione relativa del colpo sulla barriera
+                const relX = Math.floor((hitX - this.x) / this.scale);
+                const relY = Math.floor((hitY - this.y) / this.scale);
+                
+                // Verifica se la posizione è all'interno della barriera
+                if (relX >= 0 && relX < 16 && relY >= 0 && relY < 9) {
+                    // Aggiungi danni in un pattern 3x3 intorno al punto di impatto
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            const nx = relX + dx;
+                            const ny = relY + dy;
+                            if (nx >= 0 && nx < 16 && ny >= 0 && ny < 9 && Math.random() > 0.3) {
+                                this.damageMap[ny][nx] = true;
+                            }
+                        }
+                    }
+                    
+                    // Riduci la salute
+                    this.health -= 0.2;
+                    if (this.health <= 0) return true; // La barriera è distrutta
+                }
+                return false;
+            }
+        }
+
+        // Funzione per generare l'UFO occasionalmente
+        function maybeSpawnUfo() {
+            if (!ufo && Math.random() < 0.002) {
+                ufo = new Ufo();
             }
         }
 
@@ -342,7 +506,7 @@
         function spawnInvaders() {
             const rows = 5;
             const cols = 11;
-            const spacing = 40;
+            const spacing = 50;
             const startX = (canvas.width - cols * spacing) / 2;
             
             for (let i = 0; i < rows; i++) {
@@ -366,7 +530,7 @@
             const spacing = canvas.width / (count + 1);
             
             for (let i = 0; i < count; i++) {
-                barriers.push(new Barrier(spacing * (i + 1) - 20, canvas.height - 150));
+                barriers.push(new Barrier(spacing * (i + 1) - 24, canvas.height - 150));
             }
         }
 
@@ -376,8 +540,10 @@
             invaders = [];
             playerBullets = [];
             alienBullets = [];
+            explosions = [];
             spawnInvaders();
             createBarriers();
+            createStars();
             
             // Aggiungi controlli dei pulsanti
             setupControlButtons();
@@ -440,11 +606,27 @@
             
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            // Disegna le stelle di sfondo
+            drawStars();
+            
             // Gestione dell'animazione degli alieni
             animationCounter++;
             if (animationCounter >= 30) {  // Cambia frame ogni 30 cicli
                 animationFrame = 1 - animationFrame;  // Alterna tra 0 e 1
                 animationCounter = 0;
+            }
+            
+            // Possibilità di generare un UFO
+            maybeSpawnUfo();
+            
+            // Aggiorna e disegna l'UFO se presente
+            if (ufo) {
+                ufo.update();
+                if (ufo.active) {
+                    ufo.draw();
+                } else {
+                    ufo = null;
+                }
             }
             
             // Aggiorna e disegna il giocatore
@@ -507,6 +689,15 @@
                 barrier.draw();
             });
             
+            // Aggiorna e disegna gli effetti di esplosione
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                if (!explosions[i].update()) {
+                    explosions.splice(i, 1);
+                } else {
+                    explosions[i].draw();
+                }
+            }
+            
             // Controlla le collisioni
             checkCollisions();
             
@@ -524,6 +715,29 @@
 
         // Controllo delle collisioni
         function checkCollisions() {
+            // Proiettili giocatore vs UFO
+            if (ufo) {
+                for (let i = playerBullets.length - 1; i >= 0; i--) {
+                    if (
+                        playerBullets[i].x < ufo.x + ufo.width &&
+                        playerBullets[i].x + playerBullets[i].width > ufo.x &&
+                        playerBullets[i].y < ufo.y + ufo.height &&
+                        playerBullets[i].y + playerBullets[i].height > ufo.y
+                    ) {
+                        // Aggiungi esplosione
+                        explosions.push(new Explosion(ufo.x, ufo.y, '#FF0000'));
+                        
+                        // Aumenta il punteggio
+                        score += ufo.points;
+                        
+                        // Rimuovi UFO e proiettile
+                        ufo = null;
+                        playerBullets.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+            
             // Proiettili giocatore vs invasori
             for (let i = playerBullets.length - 1; i >= 0; i--) {
                 for (let j = invaders.length - 1; j >= 0; j--) {
@@ -533,9 +747,8 @@
                         playerBullets[i].y < invaders[j].y + invaders[j].height &&
                         playerBullets[i].y + playerBullets[i].height > invaders[j].y
                     ) {
-                        // Esplosione temporanea
-                        const explX = invaders[j].x;
-                        const explY = invaders[j].y;
+                        // Esplosione dell'alieno
+                        explosions.push(new Explosion(invaders[j].x, invaders[j].y));
                         
                         // Punteggio in base al tipo di invasore
                         let points = 10;
@@ -561,6 +774,9 @@
                     alienBullets[i].y < player.y + player.height &&
                     alienBullets[i].y + alienBullets[i].height > player.y
                 ) {
+                    // Esplosione del giocatore
+                    explosions.push(new Explosion(player.x, player.y, '#00FF00'));
+                    
                     lives--;
                     alienBullets.splice(i, 1);
                     
@@ -581,10 +797,11 @@
                         playerBullets[i].y < barriers[j].y + barriers[j].height &&
                         playerBullets[i].y + playerBullets[i].height > barriers[j].y
                     ) {
-                        playerBullets.splice(i, 1);
-                        if (barriers[j].hit()) {
+                        const destroyed = barriers[j].addDamage(playerBullets[i].x, playerBullets[i].y);
+                        if (destroyed) {
                             barriers.splice(j, 1);
                         }
+                        playerBullets.splice(i, 1);
                         break;
                     }
                 }
@@ -598,61 +815,6 @@
                         alienBullets[i].y < barriers[j].y + barriers[j].height &&
                         alienBullets[i].y + alienBullets[i].height > barriers[j].y
                     ) {
-                        alienBullets.splice(i, 1);
-                        if (barriers[j].hit()) {
-                            barriers.splice(j, 1);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        // UI del gioco
-        function drawUI() {
-            // Punteggio
-            ctx.fillStyle = '#00FF00';
-            ctx.font = '20px monospace';
-            ctx.textAlign = 'left';
-            ctx.fillText('SCORE ' + score.toString().padStart(4, '0'), 20, 30);
-            
-            // Vite
-            ctx.fillText('LIVES', canvas.width - 150, 30);
-            for (let i = 0; i < lives; i++) {
-                drawSprite(sprites.player, canvas.width - 100 + i * 25, 15, 2, '#00FF00');
-            }
-        }
-
-        // Schermata game over
-        function showGameOver() {
-            ctx.fillStyle = '#00FF00';
-            ctx.font = '40px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
-            ctx.font = '20px monospace';
-            ctx.fillText('SCORE: ' + score, canvas.width / 2, canvas.height / 2 + 40);
-            ctx.fillText('PRESS SPACE OR TOUCH FIRE TO RESTART', canvas.width / 2, canvas.height / 2 + 80);
-            
-            // Riavvia il gioco alla pressione della barra spaziatrice
-            document.addEventListener("keydown", (e) => {
-                if (e.key === " ") restart();
-            }, { once: true });
-            
-            // Riavvia al tocco del pulsante FIRE
-            document.getElementById("fire-btn").addEventListener("click", restart, { once: true });
-        }
-
-        // Riavvia il gioco
-        function restart() {
-            score = 0;
-            lives = 3;
-            level = 1;
-            gameOver = false;
-            init();
-        }
-
-        // Inizializza il gioco
-        init();
-    </script>
-</body>
-</html>
+                        const destroyed = barriers[j].addDamage(alienBullets[i].x, alienBullets[i].y);
+                        if (destroyed) {
+                            barriers.splice(j,
